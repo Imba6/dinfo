@@ -1,0 +1,55 @@
+services:
+  db:
+    image: postgres:16
+    container_name: dinfo_db
+    environment:
+      POSTGRES_DB: clans
+      POSTGRES_USER: clans_user
+      POSTGRES_PASSWORD: clans_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clans_user -d clans"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile.dev
+    container_name: dinfo_api
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg2://clans_user:clans_pass@db:5432/clans
+      API_KEY: ${API_KEY:-devkey}
+      CORS_ORIGINS: http://localhost:5173
+      ROOT_PATH: ""
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./api:/app/api
+
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile.dev
+    container_name: dinfo_web
+    working_dir: /app
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_BASE: http://localhost:8000/api
+    volumes:
+      - .:/app                           # mount everything (src, public, package.json, etc.)
+      - web_node_modules:/app/node_modules  # keep node_modules in a named volume
+    command: ["npm", "run", "dev", "--", "--host"]
+
+volumes:
+  db_data:
+  web_node_modules:

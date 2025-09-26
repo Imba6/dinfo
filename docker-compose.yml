@@ -1,0 +1,32 @@
+services:
+  db:
+    container_name: Diablo-db
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: clans
+      POSTGRES_USER: clans_user
+      POSTGRES_PASSWORD: clans_pass
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clans_user -d clans"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    container_name: Diablo
+    build:
+      context: .
+      dockerfile: ./api/Dockerfile
+      args:
+        FRONTEND_DIR: .      # or frontend/web if that's where vite.config.* is 
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy   # <-- now valid
+    ports:
+      - "8080:8000"
+
+volumes:
+  dbdata:
